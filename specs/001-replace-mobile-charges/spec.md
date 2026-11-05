@@ -17,6 +17,22 @@ El Excel incluye por separado el cargo mensual y el precio de adquisición del
 dispositivo. Inicialmente se cargará de forma manual; la automatización se abordará
 después de confirmar que el programa funciona correctamente.
 
+## Clarifications
+
+### Session 2026-11-04
+
+- Q: ¿El Excel de cada mes contiene todas las asignaciones móviles vigentes o solamente
+  los cambios respecto al mes anterior? → A: Todas las asignaciones vigentes del mes.
+- Q: ¿Qué dato del Excel identifica de forma única cada asignación móvil dentro de
+  un mes? → A: El número de teléfono, único para cada asignación del mismo mes.
+- Q: ¿Cómo verifica Asset Voucher actualmente la identidad del empleado que entra
+  al sitio? → A: Reconoce automáticamente la cuenta corporativa del equipo.
+- Q: ¿Quiénes deben tener permiso para cargar y publicar el Excel mensual en la
+  aplicación? → A: Solo personal de TI expresamente autorizado.
+- Q: ¿Qué meses debe permitir publicar la aplicación respecto al mes que ya está
+  visible para los empleados? → A: El mismo mes para corregirlo o uno posterior;
+  los meses anteriores se rechazan.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Consultar las asignaciones móviles propias (Priority: P1)
@@ -62,7 +78,8 @@ que PC Asset Charges sigue conduciendo a su sección existente, sin cambios en e
 **Acceptance Scenarios**:
 
 1. **Given** la selección de Asset Voucher, **When** el empleado elige Mobile Device
-   Charges, **Then** llega a la consulta móvil en su propio contexto.
+   Charges, **Then** llega a la consulta móvil en el contexto de su cuenta corporativa
+   reconocida automáticamente, sin introducir un número de empleado para autorizarse.
 2. **Given** la consulta móvil, **When** el empleado elige volver,
    **Then** regresa a la selección de Asset Voucher.
 3. **Given** el reemplazo móvil disponible, **When** el empleado elige PC Asset
@@ -75,9 +92,9 @@ que PC Asset Charges sigue conduciendo a su sección existente, sin cambios en e
 
 ### User Story 3 - Publicar el Excel mensual de forma manual (Priority: P2)
 
-Como responsable autorizado, quiero cargar manualmente el Excel mensual, verificar
-si sus datos son válidos y publicarlo, para que cada empleado consulte la información
-del último período publicado y reconozca a qué mes corresponde.
+Como integrante de TI expresamente autorizado, quiero cargar manualmente el Excel
+mensual, verificar si sus datos son válidos y publicarlo, para que cada empleado
+consulte la información del último período publicado y reconozca a qué mes corresponde.
 
 **Why this priority**: La fuente cambia cada mes; una consulta correcta necesita
 mostrar el período y evitar mezclar versiones de los datos.
@@ -107,6 +124,19 @@ y el conjunto disponible para consulta, sin necesitar el recorrido de navegació
 6. **Given** el mismo conjunto mensual válido ya publicado, **When** el responsable
    vuelve a cargarlo y publicarlo, **Then** las asignaciones y los importes no se
    duplican y el período sigue identificado correctamente.
+7. **Given** un archivo que repite un número de teléfono dentro del mismo mes,
+   aunque lo asocie a empleados distintos, **When** el responsable lo carga,
+   **Then** recibe un rechazo por asignación duplicada o contradictoria y el
+   conjunto publicado permanece intacto.
+8. **Given** una persona del departamento que mantiene el Excel o de TI sin
+   autorización expresa para publicar, **When** intenta cargar o publicar datos,
+   **Then** se rechaza el intento y no cambia el conjunto publicado.
+9. **Given** un mes publicado y un Excel completo válido que corrige ese mismo mes,
+   **When** TI autorizado lo publica, **Then** el conjunto corregido reemplaza
+   por completo al anterior, conservando el mes y sin duplicar asignaciones.
+10. **Given** un mes publicado y un archivo de un mes anterior, **When** TI autorizado
+    intenta publicarlo, **Then** recibe un rechazo por período anterior y los datos
+    vigentes no cambian.
 
 ---
 
@@ -135,6 +165,10 @@ no disponible y una identidad no verificable.
 4. **Given** una falla interna, **When** se muestra el error al empleado,
    **Then** el mensaje no contiene credenciales, identificadores internos
    de conexión ni detalles de ejecución.
+5. **Given** una cuenta corporativa que no se reconoce automáticamente o no tiene
+   correspondencia inequívoca con un número de empleado, **When** se abre la consulta,
+   **Then** el sistema no permite sustituir esa verificación escribiendo un número
+   y no divulga asignaciones.
 
 ### Edge Cases
 
@@ -146,12 +180,16 @@ no disponible y una identidad no verificable.
   inválido; los casos no son equivalentes y los dos conceptos no se intercambian.
 - La fuente repite una misma asignación en el mismo período o contiene asignaciones
   contradictorias; no se duplican costos ni se resuelve la contradicción
-  silenciosamente. Repetir el número de empleado en asignaciones distintas es válido.
+  silenciosamente. El teléfono identifica la asignación y no puede repetirse en el
+  mismo mes; un número de empleado sí puede tener varios teléfonos distintos.
 - La actualización mensual falla, llega tarde o aún no se publica;
   nunca debe presentarse una versión anterior como si fuera del nuevo período.
 - El responsable carga un archivo que no es Excel, está ilegible o no contiene los
   datos obligatorios; recibe un rechazo y la información publicada queda intacta.
 - El mismo archivo se publica más de una vez; no se duplican asignaciones ni importes.
+- Se carga un archivo de un mes anterior al vigente; se rechaza su publicación.
+- Se corrige el mes vigente; el archivo completo corregido sustituye al anterior,
+  sin combinar ambas versiones del mismo mes.
 - La fuente nueva retira o reasigna un dispositivo; cada empleado ve únicamente
   las asignaciones que le corresponden en el período publicado.
 - La fuente incluye monedas o conceptos de costo distintos; no se mezclan
@@ -168,8 +206,10 @@ no disponible y una identidad no verificable.
 - **FR-001**: El sistema MUST reemplazar la consulta Mobile Device Charges
   manteniendo su entrada desde Asset Voucher; PC Asset Charges queda fuera del cambio.
 - **FR-002**: El sistema MUST verificar la identidad del empleado antes de divulgar
-  asignaciones y MUST limitar la consulta a los registros del número de empleado
-  asociado al contexto de identidad verificado de Asset Voucher.
+  asignaciones mediante la cuenta corporativa que Asset Voucher reconoce
+  automáticamente. MUST limitar la consulta al número de empleado asociado
+  inequívocamente a esa cuenta verificada; si no puede verificarse la cuenta
+  o su correspondencia, MUST denegar la consulta sin divulgar asignaciones.
 - **FR-003**: La asociación entre Asset Voucher y la fuente mensual MUST realizarse
   por número de empleado, no por nombre visible; proporcionar el número de otra
   persona MUST NOT autorizar la consulta de sus asignaciones.
@@ -185,16 +225,22 @@ no disponible y una identidad no verificable.
 - **FR-007**: La consulta MUST identificar el mes de los datos publicados y
   distinguir ese período de la fecha en que se realiza la consulta.
 - **FR-008**: Los datos de consulta MUST poder actualizarse desde el Excel mensual
-  mediante una carga manual en la aplicación disponible únicamente para
-  responsables autorizados; la primera versión no incluye carga automática.
+  mediante una carga manual en la aplicación disponible únicamente para personal
+  de TI expresamente autorizado a cargar y publicar. Pertenecer al departamento
+  que prepara el Excel o a TI MUST NOT conceder automáticamente ese permiso;
+  la primera versión no incluye carga automática.
 - **FR-009**: Antes de publicar una actualización, la carga manual MUST comprobar
   que el Excel es legible y que contiene datos válidos de número de empleado,
   asignación, teléfono, cargo mensual, precio de adquisición y período.
-  MUST rechazar archivos inválidos, asignaciones ambiguas o repetidas para el mismo
-  período, explicar al responsable los problemas encontrados y conservar la versión
-  válida publicada. Varias asignaciones distintas de un empleado son válidas.
-- **FR-010**: La publicación de un nuevo período MUST sustituir el conjunto anterior
-  para la consulta actual sin mezclar versiones ni mantener asignaciones retiradas.
+  El teléfono MUST identificar una única asignación en cada mes. La carga MUST
+  rechazar archivos inválidos y teléfonos repetidos en el mismo período, incluso
+  si corresponden a empleados diferentes; MUST explicar al responsable los problemas
+  encontrados y conservar la versión válida publicada. Varias asignaciones con
+  teléfonos distintos para un mismo número de empleado son válidas.
+- **FR-010**: Cada Excel mensual MUST representar todas las asignaciones vigentes
+  del período. Su publicación MUST sustituir por completo el conjunto anterior
+  para la consulta actual; las asignaciones ausentes en el nuevo archivo MUST dejar
+  de mostrarse, sin mezclar versiones ni conservar registros por omisión.
 - **FR-011**: El sistema MUST distinguir una consulta válida sin asignaciones de
   una consulta que falló o no pudo verificar la identidad.
 - **FR-012**: Los errores MUST comunicar la indisponibilidad o el rechazo de una
@@ -213,6 +259,12 @@ no disponible y una identidad no verificable.
   como exitosa ni alterar el conjunto válido anterior.
 - **FR-017**: Volver a publicar el mismo conjunto mensual válido MUST NOT
   duplicar asignaciones, cargos mensuales ni precios de adquisición.
+- **FR-018**: Cuando exista un período publicado, la aplicación MUST permitir
+  publicar un Excel completo válido del mismo mes como corrección o de un mes
+  posterior. MUST rechazar la publicación de un mes anterior, con un mensaje
+  explícito y sin modificar el conjunto vigente. La comparación MUST realizarse
+  contra el período vigente al publicar; una corrección MUST sustituir por completo
+  el conjunto del mismo mes, sin mezclar sus versiones.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -220,17 +272,17 @@ no disponible y una identidad no verificable.
   identidad de acceso, un nombre visible y un número de empleado que permite
   relacionarla inequívocamente con la fuente mensual.
 - **Asignación móvil**: Asociación de un dispositivo celular con un empleado
-  para el período publicado; incluye identificación de la asignación según
-  la fuente, número de teléfono, cargo mensual y precio de adquisición.
+  para el período publicado; se identifica por el número de teléfono y el mes,
+  e incluye número de empleado, cargo mensual y precio de adquisición.
 - **Cargo mensual**: Importe mensual de la línea o dispositivo registrado en
   la fuente, con moneda y período de aplicación.
 - **Precio de adquisición**: Importe de adquisición del dispositivo registrado
   en la fuente, con moneda; no se interpreta como cargo mensual.
 - **Conjunto mensual**: Información autorizada procedente del Excel para un mes,
-  con asignaciones validadas y un estado de publicación.
-- **Responsable de actualización**: Persona autorizada para cargar y publicar
-  manualmente el Excel mensual en la primera versión; esa facultad no se concede
-  por defecto a todos los empleados.
+  con todas las asignaciones vigentes, datos validados y un estado de publicación.
+- **Responsable de actualización**: Integrante de TI expresamente autorizado
+  para cargar y publicar manualmente el Excel mensual. El departamento que prepara
+  la fuente no recibe permiso de publicación por mantener el archivo.
 
 ## Success Criteria *(mandatory)*
 
@@ -260,6 +312,9 @@ no disponible y una identidad no verificable.
 - **SC-008**: En el 100% de las pruebas de carga manual, el responsable puede
   distinguir publicación exitosa y rechazo; los archivos inválidos y los intentos
   sin autorización no cambian los datos, y repetir una publicación no los duplica.
+- **SC-009**: El 100% de las pruebas de corrección del mismo mes refleja únicamente
+  el conjunto corregido; el 100% de los intentos de publicar meses anteriores
+  al vigente se rechaza sin modificar las asignaciones ni los importes publicados.
 
 ## Assumptions
 
@@ -280,23 +335,27 @@ no disponible y una identidad no verificable.
   ni consulta general de otros empleados.
 - **Histórico**: La primera versión muestra el último período publicado;
   no incluye un selector de meses ni consulta histórica.
-- **Identidad existente**: Se conserva el contexto de identidad de Asset Voucher;
-  no se plantea un nuevo registro de cuentas. La correspondencia con el Excel
-  utiliza el número de empleado, confirmado por el usuario.
-- **Dependencia de identidad**: Durante la planificación se debe confirmar cómo
-  Asset Voucher proporciona el número de empleado del contexto autorizado.
-  El acceso a la consulta no puede depender de que el usuario escriba un número.
+- **Identidad existente confirmada**: Asset Voucher reconoce automáticamente
+  la cuenta corporativa del equipo. El reemplazo conserva esa verificación;
+  no incluye registro de cuentas nuevas ni acceso autorizado mediante la
+  introducción de un número de empleado.
+- **Dependencia de identidad**: Durante la planificación se debe verificar
+  cómo Asset Voucher proporciona la relación confiable entre la cuenta corporativa
+  reconocida automáticamente y su número de empleado.
 - **Dependencia de datos**: Durante la planificación se deben confirmar los nombres
   de columnas y formatos del Excel, las monedas de los importes, cómo se indica
-  el período y cómo se identifica cada asignación. Se utilizará una descripción
-  de estructura o una muestra anonimizada,
+  el período y la representación del teléfono que identifica cada asignación.
+  Se utilizará una descripción de estructura o una muestra anonimizada,
   sin incorporar información real de empleados a la especificación.
 - **Actualización inicial**: La carga y publicación mensual es manual y la realiza
-  un responsable autorizado. No se incluye edición individual de filas en la aplicación.
-- **Corte mensual**: Se asume que cada archivo representa el conjunto completo
-  de asignaciones del período, no únicamente los cambios. La publicación sustituye
-  el conjunto de consulta anterior; este supuesto debe verificarse al revisar
-  la estructura del Excel con el departamento responsable.
+  personal de TI expresamente autorizado. El departamento responsable continúa
+  preparando el Excel; no se incluye edición individual de filas en la aplicación.
+- **Corte mensual confirmado**: Cada archivo contiene todas las asignaciones
+  vigentes del mes, no únicamente los cambios. Su publicación sustituye por completo
+  el conjunto de consulta anterior.
+- **Correcciones confirmadas**: Se permite sustituir el conjunto completo del mes
+  vigente para corregirlo y publicar meses posteriores; no se permite retroceder
+  a un mes anterior mediante la carga manual.
 - **Evolución solicitada**: La actualización automática se abordará después de
   confirmar que la versión manual funciona correctamente. Queda fuera de esta
   primera entrega; sus mecanismos y criterios de habilitación deberán especificarse
