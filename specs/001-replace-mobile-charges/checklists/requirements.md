@@ -36,16 +36,19 @@ de calidad del requisito; no significa que la función esté implementada.
 
 ## Notes
 
-- Revisión final: 16 de 16 criterios de calidad satisfechos.
-- Aclaraciones confirmadas el 2026-11-04: asociación por número de empleado,
-  dos conceptos separados de costo y carga manual inicial del Excel.
+- Revisión final: 16 de 16 criterios de calidad satisfechos; revisado de nuevo
+  tras incorporar la estructura real confirmada el 2026-11-09.
+- Aclaraciones confirmadas: asociación por número de empleado; la hoja `Billing Data`
+  contiene número de empleado, teléfono, cargo mensual y fecha de activación.
+  No existe un precio de adquisición separado.
 - FR-003 y User Story 1 cubren la asociación por número de empleado y los nombres
-  coincidentes; FR-004 a FR-006 distinguen cargo mensual y precio de adquisición.
+  coincidentes; FR-004 a FR-006 describen el cargo mensual y la fecha de activación.
 - FR-008 a FR-010, FR-016 y FR-017, junto con User Story 3, cubren carga manual,
   autorización, validación, publicación y ausencia de duplicados.
 - La actualización automática queda fuera de la entrega inicial y registrada
   como evolución posterior solicitada por el usuario.
-- La estructura del Excel y la disponibilidad del número de empleado en
-  Asset Voucher son dependencias que deben confirmarse durante la planificación.
+- El período se obtiene del prefijo `MM_YYYY` del nombre del archivo; su sufijo de
+  versión no cambia el período. `Activation Date` puede estar vacía; si se informa,
+  debe ser válida y mostrarse como atributo distinto del período.
 - Estos marcadores evalúan requisitos, no resultados de pruebas de software.
-- Especificación lista para `/speckit-plan`.
+- Plan y artefactos de diseño generados en `/speckit-plan`; falta implementación.

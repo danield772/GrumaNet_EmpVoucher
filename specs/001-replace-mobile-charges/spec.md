@@ -12,10 +12,12 @@ celulares asignados a su nombre, su número de teléfono y su costo. La informac
 proviene de un Excel que un departamento actualiza mensualmente. La pantalla
 principal y PC Asset Charges sirven como referencia."
 
-**Clarifications (2026-11-04)**: La correspondencia se realiza por número de empleado.
-El Excel incluye por separado el cargo mensual y el precio de adquisición del
-dispositivo. Inicialmente se cargará de forma manual; la automatización se abordará
-después de confirmar que el programa funciona correctamente.
+**Clarifications (2026-11-09)**: La fuente es la hoja `Billing Data` con las columnas
+`Description 2 - Emp Number`, `Mobile Number`,
+`Equipment Payment Plan Charges` y `Activation Date`. El único importe disponible
+es el cargo mensual; no existe un precio de adquisición separado. El período se
+obtiene del prefijo `MM_YYYY` del nombre del archivo; el sufijo de versión cambia
+con cada archivo recibido y no forma parte del período.
 
 ## Clarifications
 
@@ -33,34 +35,46 @@ después de confirmar que el programa funciona correctamente.
   visible para los empleados? → A: El mismo mes para corregirlo o uno posterior;
   los meses anteriores se rechazan.
 
+### Session 2026-11-09
+
+- Q: ¿Qué hoja y columnas contiene el Excel móvil, y qué representa el importe?
+  → A: La hoja `Billing Data` contiene `Description 2 - Emp Number`,
+  `Mobile Number`, `Equipment Payment Plan Charges` y `Activation Date`.
+  El importe es el cargo mensual; no hay precio de adquisición separado.
+- Q: ¿Dónde se indica el período de facturación y cómo se reconoce una nueva
+  versión del archivo? → A: El nombre empieza con `MM_YYYY`; el sufijo de versión
+  aumenta cada vez que se recibe un archivo nuevo.
+- Q: ¿La fecha `Activation Date` es obligatoria en cada fila? → A: Puede venir
+  vacía.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Consultar las asignaciones móviles propias (Priority: P1)
 
 Como empleado, quiero consultar los dispositivos celulares asociados a mi identidad
-para conocer los números de teléfono, los cargos mensuales y los precios de
-adquisición registrados a mi nombre, sin confundir los dos conceptos.
+para conocer los números de teléfono, el cargo mensual y la fecha de activación
+registrados a mi nombre.
 
 **Why this priority**: Es la función principal de la página que dejó de funcionar.
 
 **Independent Test**: Con datos ficticios de dos empleados, abrir la consulta para
-uno de ellos y comparar cada asignación, número de teléfono y ambos importes con
-la fuente mensual, usando el número de empleado y sin mostrar registros ajenos.
+uno de ellos y comparar cada asignación, número de teléfono, cargo mensual y fecha
+de activación con la fuente mensual, usando el número de empleado y sin mostrar
+registros ajenos.
 
 **Acceptance Scenarios**:
 
 1. **Given** un empleado identificado y una fuente publicada con una asignación a
    su número de empleado, **When** consulta Mobile Device Charges, **Then** ve su
-   contexto de empleado, la asignación, el número de teléfono, el cargo mensual,
-   el precio de adquisición y el período de datos, con ambos importes diferenciados.
+   contexto de empleado, el número de teléfono, el cargo mensual, la fecha de
+   activación y el período de datos.
 2. **Given** un empleado con varias asignaciones, **When** consulta la página,
    **Then** puede consultar todas sus asignaciones, sin incluir las de otra persona.
 3. **Given** dos empleados con el mismo nombre visible, **When** uno consulta sus
    dispositivos, **Then** el sistema selecciona únicamente los registros de su
    número de empleado y no concede acceso por una coincidencia de nombres.
-4. **Given** un cargo mensual o un precio de adquisición válido de cero,
-   **When** se presenta la asignación, **Then** el importe correspondiente se
-   muestra como cero y no se confunde con un dato ausente.
+4. **Given** un cargo mensual válido de cero, **When** se presenta la asignación,
+   **Then** se muestra como cero y no se confunde con un dato ausente.
 
 ---
 
@@ -100,8 +114,8 @@ consulte la información del último período publicado y reconozca a qué mes c
 mostrar el período y evitar mezclar versiones de los datos.
 
 **Independent Test**: Preparar dos conjuntos mensuales ficticios con una asignación
-agregada, una retirada y ambos conceptos de costo modificados; cargar y publicar el
-nuevo archivo como responsable autorizado y verificar el resultado de la publicación
+agregada, una retirada y un cargo mensual modificado; cargar y publicar el nuevo
+archivo como responsable autorizado y verificar el resultado de la publicación
 y el conjunto disponible para consulta, sin necesitar el recorrido de navegación.
 
 **Acceptance Scenarios**:
@@ -109,7 +123,7 @@ y el conjunto disponible para consulta, sin necesitar el recorrido de navegació
 1. **Given** un período publicado y otro nuevo válido, **When** el nuevo período
    se carga manualmente y se publica por un responsable autorizado, **Then**
    este recibe confirmación con el período publicado y la consulta refleja sus
-   asignaciones, números, cargos mensuales y precios de adquisición.
+   asignaciones, números, cargos mensuales y fechas de activación.
 2. **Given** una asignación que ya no figura en el nuevo período,
    **When** se consulta el período recién publicado,
    **Then** la asignación anterior no continúa apareciendo como actual.
@@ -176,8 +190,10 @@ no disponible y una identidad no verificable.
 - Dos empleados comparten nombre; la asociación debe seguir siendo inequívoca.
 - La fuente contiene un número de teléfono con prefijo internacional, espacios
   o ceros iniciales; la presentación no debe perder sus caracteres significativos.
-- Un cargo mensual o un precio de adquisición es cero, falta o tiene un formato
-  inválido; los casos no son equivalentes y los dos conceptos no se intercambian.
+- El cargo mensual es cero, falta o tiene un formato inválido; estos casos no son
+  equivalentes y el valor no se sustituye por un concepto inexistente.
+- La fecha de activación puede estar vacía; cuando está presente debe tener un
+  formato válido y no debe confundirse con el período mensual del archivo.
 - La fuente repite una misma asignación en el mismo período o contiene asignaciones
   contradictorias; no se duplican costos ni se resuelve la contradicción
   silenciosamente. El teléfono identifica la asignación y no puede repetirse en el
@@ -214,14 +230,17 @@ no disponible y una identidad no verificable.
   por número de empleado, no por nombre visible; proporcionar el número de otra
   persona MUST NOT autorizar la consulta de sus asignaciones.
 - **FR-004**: La consulta MUST listar todas las asignaciones celulares propias
-  del período publicado, mostrando el número de teléfono, el cargo mensual y
-  el precio de adquisición de cada una, además del contexto del empleado.
-- **FR-005**: La página MUST presentar el cargo mensual y el precio de adquisición
-  como dos importes distintos con etiquetas inequívocas; MUST NOT sumarlos en
-  un único costo, intercambiarlos ni calcular cargos que no existan en la fuente.
+  del período publicado, mostrando el número de teléfono, el cargo mensual y la
+  fecha de activación de cada una, además del contexto del empleado.
+- **FR-005**: La página MUST presentar `Equipment Payment Plan Charges` como
+  cargo mensual con una etiqueta inequívoca; MUST NOT inventar un precio de
+  adquisición ni calcular cargos que no existan en la fuente.
 - **FR-006**: Los números de teléfono MUST conservar sus caracteres significativos;
-  los importes MUST conservar el valor de la fuente e identificar su moneda
-  y, cuando corresponda, su período de aplicación, sin asumir una moneda por el símbolo.
+  el cargo MUST conservar el valor de la fuente e identificar la moneda solo
+  cuando esta se encuentre definida en la fuente, sin inferirla por un símbolo.
+  La fecha de activación, cuando esté presente, MUST presentarse como atributo de
+  la asignación, no como período de facturación; si está vacía, la página MUST
+  indicar que no está disponible.
 - **FR-007**: La consulta MUST identificar el mes de los datos publicados y
   distinguir ese período de la fecha en que se realiza la consulta.
 - **FR-008**: Los datos de consulta MUST poder actualizarse desde el Excel mensual
@@ -230,8 +249,12 @@ no disponible y una identidad no verificable.
   que prepara el Excel o a TI MUST NOT conceder automáticamente ese permiso;
   la primera versión no incluye carga automática.
 - **FR-009**: Antes de publicar una actualización, la carga manual MUST comprobar
-  que el Excel es legible y que contiene datos válidos de número de empleado,
-  asignación, teléfono, cargo mensual, precio de adquisición y período.
+  que el Excel es legible, que incluye la hoja `Billing Data` con las columnas
+  `Description 2 - Emp Number`, `Mobile Number`,
+  `Equipment Payment Plan Charges` y `Activation Date`, y que contiene datos
+  válidos de número de empleado, teléfono, cargo mensual, fecha de activación
+  cuando esté presente, y período obtenido del nombre del archivo. La fecha de
+  activación vacía MUST NOT invalidar por sí sola una fila.
   El teléfono MUST identificar una única asignación en cada mes. La carga MUST
   rechazar archivos inválidos y teléfonos repetidos en el mismo período, incluso
   si corresponden a empleados diferentes; MUST explicar al responsable los problemas
@@ -258,7 +281,7 @@ no disponible y una identidad no verificable.
   y el período publicado; una carga o publicación fallida MUST NOT presentarse
   como exitosa ni alterar el conjunto válido anterior.
 - **FR-017**: Volver a publicar el mismo conjunto mensual válido MUST NOT
-  duplicar asignaciones, cargos mensuales ni precios de adquisición.
+  duplicar asignaciones ni cargos mensuales.
 - **FR-018**: Cuando exista un período publicado, la aplicación MUST permitir
   publicar un Excel completo válido del mismo mes como corrección o de un mes
   posterior. MUST rechazar la publicación de un mes anterior, con un mensaje
@@ -273,11 +296,11 @@ no disponible y una identidad no verificable.
   relacionarla inequívocamente con la fuente mensual.
 - **Asignación móvil**: Asociación de un dispositivo celular con un empleado
   para el período publicado; se identifica por el número de teléfono y el mes,
-  e incluye número de empleado, cargo mensual y precio de adquisición.
-- **Cargo mensual**: Importe mensual de la línea o dispositivo registrado en
-  la fuente, con moneda y período de aplicación.
-- **Precio de adquisición**: Importe de adquisición del dispositivo registrado
-  en la fuente, con moneda; no se interpreta como cargo mensual.
+  e incluye número de empleado, cargo mensual y fecha de activación.
+- **Cargo mensual**: Importe `Equipment Payment Plan Charges` registrado en la
+  fuente para la línea o dispositivo. No existe un importe de adquisición separado.
+- **Fecha de activación**: Fecha `Activation Date` asociada con la línea; puede
+  no estar informada y no es el período de facturación.
 - **Conjunto mensual**: Información autorizada procedente del Excel para un mes,
   con todas las asignaciones vigentes, datos validados y un estado de publicación.
 - **Responsable de actualización**: Integrante de TI expresamente autorizado
@@ -289,7 +312,7 @@ no disponible y una identidad no verificable.
 ### Measurable Outcomes
 
 - **SC-001**: En el conjunto de aceptación ficticio, el 100% de las asignaciones,
-  números de teléfono, cargos mensuales y precios de adquisición mostrados coincide
+  números de teléfono, cargos mensuales y fechas de activación mostrados coincide
   con el período publicado para cada número de empleado, incluyendo empleados
   con cero, una y varias asignaciones.
 - **SC-002**: En el 100% de los escenarios de acceso no autorizado y de empleados
@@ -298,9 +321,8 @@ no disponible y una identidad no verificable.
   de las consultas muestra el listado o un estado explícito en cinco segundos
   desde que el empleado abre Mobile Device Charges.
 - **SC-004**: Al menos el 90% de los participantes de la prueba de uso puede
-  identificar un número de teléfono, distinguir el cargo mensual del precio
-  de adquisición, reconocer el período y regresar a Asset Voucher en un minuto,
-  sin ayuda.
+  identificar un número de teléfono y su cargo mensual, reconocer la fecha de
+  activación y el período, y regresar a Asset Voucher en un minuto, sin ayuda.
 - **SC-005**: El 100% de las pruebas de actualización mensual refleja las altas,
   bajas, reasignaciones y cambios de costo de un único período publicado;
   ninguna actualización rechazada modifica el conjunto válido anterior.
@@ -342,11 +364,16 @@ no disponible y una identidad no verificable.
 - **Dependencia de identidad**: Durante la planificación se debe verificar
   cómo Asset Voucher proporciona la relación confiable entre la cuenta corporativa
   reconocida automáticamente y su número de empleado.
-- **Dependencia de datos**: Durante la planificación se deben confirmar los nombres
-  de columnas y formatos del Excel, las monedas de los importes, cómo se indica
-  el período y la representación del teléfono que identifica cada asignación.
-  Se utilizará una descripción de estructura o una muestra anonimizada,
-  sin incorporar información real de empleados a la especificación.
+- **Estructura de datos confirmada**: La hoja fuente es `Billing Data`; sus
+  encabezados son `Description 2 - Emp Number`, `Mobile Number`,
+  `Equipment Payment Plan Charges` y `Activation Date`. No hay un precio de
+  adquisición separado. El prefijo `MM_YYYY` del nombre identifica el período;
+  el sufijo numérico de versión se incrementa con cada archivo recibido y no
+  identifica un período diferente. La fecha de activación no reemplaza al período.
+- **Dependencia de datos**: Antes de implementar se deben verificar, con una
+  muestra anonimizada, el formato de archivo, el formato de la fecha de activación,
+  la moneda si está especificada, y la representación del teléfono.
+  No se incorporarán datos reales de empleados a la especificación.
 - **Actualización inicial**: La carga y publicación mensual es manual y la realiza
   personal de TI expresamente autorizado. El departamento responsable continúa
   preparando el Excel; no se incluye edición individual de filas en la aplicación.
