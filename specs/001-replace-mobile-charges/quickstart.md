@@ -2,8 +2,9 @@
 
 ## Prerequisites
 
-- The ASP.NET Web Forms application source, solution/project files, and SQL
-  schema/procedures. These were not included in the planning repository.
+- The ASP.NET Web Forms application source and verified SQL objects/procedures.
+  The supplied folder can be an ASP.NET Web Site without solution/project files;
+  SQL data is server-hosted rather than stored in `App_Data`.
 - A non-production environment with corporate authentication and an explicitly
   authorized test publisher.
 - A synthetic or anonymized Excel workbook using the actual source format,
@@ -13,6 +14,10 @@
 Build and test commands must use the recovered solution's existing tooling; no
 solution or test project is present here, so a repository command cannot yet be
 specified without guessing.
+
+For the reported legacy `CUS` login failure, use the separate diagnosis and
+verification procedure in `docs/mobile-charges-database-access.md` at the
+repository root. That repair does not implement the monthly Excel replacement.
 
 ## End-to-end scenarios
 
