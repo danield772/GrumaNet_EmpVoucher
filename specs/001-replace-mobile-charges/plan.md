@@ -32,6 +32,15 @@ definitions are available.
 
 **Testing**: No solution, project, or test files are present in this repository. Add parser, validation, authorization, publication-atomicity, and page-flow tests to the recovered application using its existing test/build conventions.
 
+**Deployment clarification (2026-11-12)**: The supplied `CodeFile`/`App_Code`
+layout is consistent with an ASP.NET Web Site, which does not require a
+`.sln`/`.vbproj` to run. SQL connections target a server database, not an
+`App_Data` file. Missing project files or an empty `App_Data` folder are not
+implementation blockers by themselves. Verify the deployed IIS configuration,
+runtime, database objects and identity mapping rather than inventing a project.
+The reported screenshot uses ASP.NET 2.0 while the supplied configuration targets
+4.7.1, so establish the actual deployment baseline before introducing new code.
+
 **Target Platform**: Existing corporate Asset Voucher Web Forms application on Windows/IIS and SQL Server.
 
 **Project Type**: Server-rendered Web Forms application; employee read view and restricted administrative upload/publish workflow.

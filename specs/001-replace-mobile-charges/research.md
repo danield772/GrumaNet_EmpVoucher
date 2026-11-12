@@ -12,6 +12,14 @@ as the mobile page and shows the existing application is VB.NET Web Forms on
 documents, so the exact solution and database integration points must be
 confirmed when application source is restored.
 
+**Follow-up (2026-11-12)**: `CodeFile` pages and `App_Code` are consistent with
+the ASP.NET Web Site deployment model; a solution/project file is not required
+for it. The connection configuration targets server-hosted `CUS`, with no
+attached database file. An empty `App_Data` folder is therefore expected and
+does not explain the reported database login failure. Operational diagnosis
+and controlled DBA remediation are documented in
+`docs/mobile-charges-database-access.md` at the repository root.
+
 **Alternatives considered**: Rebuild the whole Asset Voucher site or create a
 separate application. Both expand scope and risk disrupting the working PC page
 and existing corporate authentication.
