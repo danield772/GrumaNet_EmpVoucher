@@ -114,3 +114,135 @@ The screenshot reports ASP.NET/.NET 2.0, whereas the supplied configuration
 targets 4.7.1. Confirm which deployed site and application-pool runtime produced
 the error before deploying any replacement code. Do not assume the supplied
 folder is an exact copy of production.
+
+## Isolated Excel-backed replacement (prepared, not deployed)
+
+The user elected to replace only the employee mobile page without changing
+legacy reports. No target database is approved yet; **no SQL installation,
+permission change, or production deployment has been performed**.
+
+### Scope of the patch
+
+- Replace only `rptMCMUserPeriodDetail.aspx` and its code-behind.
+- Add `App_Code/MobileCharges/`, `MobileChargesUpload.aspx` and its code-behind,
+  and the ExcelDataReader runtime assembly.
+- Do not overwrite any other existing pages, `dbPeople.vb`, datasets, menus,
+  themes, or `MCMConnectionString`. In particular, leave
+  `rptMCMCostCenterDetail.aspx`, `rptMCMPeriodDetail.aspx`, and
+  `rptMCMSerialDetail.aspx` unchanged.
+- New employee-view, identity and publisher connections have dedicated names.
+  No new page queries `CUS` or reuses the legacy connection setting.
+
+The repository's `LeaseInvoice/` folder is an **overlay**, not a complete site.
+Never replace the deployed directory with it. Shared App_Code compilation and
+configuration still require staging/regression checks before release.
+
+### Approval and integration gates
+
+1. Confirm the production runtime. The prepared code needs .NET Framework
+   **4.7.1 or later** on CLR v4 and SQL Server **2012 or later**. The error
+   screenshot showed ASP.NET 2.0. Do not upgrade the shared application's pool
+   merely to install this patch: that can affect other reports. If production
+   is still on CLR v2, stop and agree a separately isolated application/routing
+   plan or a runtime migration before deployment.
+2. Obtain DBA approval for the database and SQL identities. Review
+   `database/Install-EmployeeMobileCharges.sql`; it defaults to no execution.
+   The DBA must select the approved non-system database and deliberately enable
+   installation in a local copy. It creates only the new `mobile` schema,
+   snapshot tables, `mobile.ReadEmployee`, and `mobile.Publish`; existing tables
+   and reports are untouched. Do not use the legacy CUS repair script for this.
+3. Implement `database/MobileChargesIdentityContract.sql` against the verified
+   corporate identity source. The procedure must return exactly one workbook
+   employee number for the authenticated login. `peopleid` and `sap_number`
+   are not assumed to be that number. The example is comments only, not a
+   speculative identity mapping; consultation fails closed until configured.
+4. Merge only the additions in `LeaseInvoice/MobileCharges.config.example`
+   into the deployed configuration. Set an approved publisher allowlist using
+   semicolon-separated full corporate logins, and the actual application-local
+   Asset Voucher return page. Leave the existing authentication and connection
+   strings intact. Keep secrets in secured deployment configuration, never Git.
+5. Grant only the needed procedure EXECUTE rights: read on the view connection,
+   publish on the publisher connection, and identity resolution on the identity
+   connection. Use distinct SQL credentials or appropriately isolated Windows
+   identities if separate database permissions are required; identical integrated
+   connection strings use the same IIS identity. Do not grant table writes,
+   `db_owner` or general database read access.
+6. Require HTTPS and verified corporate authentication. Test missing and
+   ambiguous identity mappings, unauthorized publishers, and cross-employee
+   URL manipulation. The old `id` parameter is ignored.
+
+### Workbook and publication behavior
+
+Only explicitly allowlisted publishers can validate or publish. Upload
+validation reads the whole `Billing Data` sheet by its four exact headers,
+rejects invalid rows and formatted duplicate phones, and shows the period and
+row count before an explicit confirmation. No employee rows are displayed
+in the administrative preview.
+
+The code reads `.xls` and `.xlsx`, up to 10 MB, 20,000 data rows and 128 columns.
+For `.xlsx`, archive metadata is bounded to 2,000 entries and 64 MB expanded
+content. Header names must be on the first row. The sample configuration adds
+page-scoped ASP.NET/IIS request limits with room for multipart overhead.
+Over-limit requests may be rejected by IIS before page code runs.
+
+Raw workbooks are never written by application code: parsing is bounded and
+uses the request stream. IIS/ASP.NET can still buffer uploads temporarily using
+its own protected storage. Validated rows are held in server-side session until
+confirmation/session expiry, not in hidden fields or the web root.
+
+Employee/phone identifiers are preserved as text. Simple numeric identifiers
+and zero-padding formats are supported; ambiguous numeric formatting is
+rejected rather than silently dropping significant characters. Charges must
+be numeric, with no currency symbol, up to 15 integer and 4 decimal digits;
+zero is valid. Currency is not inferred. Activation dates may be blank, native
+Excel dates, or text in `yyyy-MM-dd` or `M/d/yyyy` form. SQL date storage starts
+at 1753; unsupported dates are explicitly rejected.
+
+Publication atomically replaces the whole active snapshot, permits same-month
+correction and later periods, and rechecks ordering under a database lock.
+Reconfirming the current batch does not duplicate records. The read procedure
+returns the period and assignments from one consistent snapshot. Previous
+snapshots are deleted transactionally; this is not historical reporting or a
+backup mechanism. A header-only valid workbook is an empty complete snapshot;
+its zero row count is shown before confirmation.
+
+### Local verification
+
+From the repository root in Windows PowerShell:
+
+```powershell
+& .\scripts\Restore-MobileCharges.ps1
+& .\scripts\Test-EmployeeMobileCharges.ps1
+& .\scripts\Test-MobileChargesPages.ps1
+```
+
+The restore fetches the declared ExcelDataReader 3.7.0 NuGet package, whose
+.NET Framework 4.6.2 build has no extra package dependencies. The assembly is
+copied to the overlay's `bin`; package and compiled output folders are ignored.
+The tests compile VB.NET services, read synthetic in-memory workbooks, and
+precompile both ASP.NET pages with the configuration example. They do not open
+SQL connections, use production employee records, or apply deployment scripts.
+
+The local checks passed: 34 synthetic assertions, the existing seven probe
+preflight cases, and ASP.NET precompilation with the example configuration.
+SQL transaction/concurrency
+tests, real corporate identity resolution, real monthly workbook compatibility,
+browser usability, the five-second target, and regression checks against the
+other reports **remain pending in an approved staging environment**.
+
+### Staging acceptance and rollback
+
+Seed synthetic identities and two synthetic monthly workbooks. Verify
+employee isolation (including duplicate display names and changed URL IDs),
+missing/ambiguous mappings, zero charge, optional activation date, invalid
+headers/rows, duplicate phones, unauthorized upload and confirmation, CSRF
+rejection, correction/later-month publication and older-month rejection.
+Confirm that omitted assignments disappear, unpublished uploads are invisible,
+and concurrent reads never mix a period with another snapshot's assignments.
+Force a failed SQL publication and verify that the previous snapshot survives.
+
+Back up the two original employee page files and deployed configuration before
+release. Roll back by restoring those page files/configuration and removing
+only the new mobile files/assemblies if nothing else depends on them. Do not
+drop the new database schema or alter legacy SQL objects automatically; DBA
+review and the organization's backup/retention policy govern database cleanup.

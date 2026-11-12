@@ -8,6 +8,13 @@
 **Organization**: Tasks are grouped by user story. Automated tests are included
 to satisfy the project constitution's verification requirement.
 
+**Scope update (2026-11-12)**: User approved preparing only the employee mobile
+replacement and new upload support, with no SQL changes until DBA approval.
+The `LeaseInvoice/` source is an overlay, not a restored full site. Do not modify
+the existing menu, cost-center reports, serial report or `MCMConnectionString`.
+Paths below reflect the prepared overlay; unchecked tasks include live
+integration work that is not claimed complete.
+
 ## Phase 1: Setup
 
 **Purpose**: Restore the application context and establish reproducible build
@@ -46,10 +53,10 @@ the correct period and source values.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create the mobile assignment view model in `LeaseInvoice/App_Code/MobileCharges/MobileAssignment.vb`, preserving these model rules: billing period “Required; part of the assignment key”; employee number “Read from `Description 2 - Emp Number`; required and matched to the employee mapping”; mobile number “Read from `Mobile Number`; required, preserve significant characters, unique within a billing period”; monthly charge “Read from `Equipment Payment Plan Charges`; required, source-faithful, zero is valid”; activation date “Read from `Activation Date`; blank is allowed, a supplied value must be valid, and it is distinct from billing period.”
+- [X] T008 [US1] Create the mobile assignment view model in `LeaseInvoice/App_Code/MobileCharges/Models.vb`, preserving these model rules: billing period “Required; part of the assignment key”; employee number “Read from `Description 2 - Emp Number`; required and matched to the employee mapping”; mobile number “Read from `Mobile Number`; required, preserve significant characters, unique within a billing period”; monthly charge “Read from `Equipment Payment Plan Charges`; required, source-faithful, zero is valid”; activation date “Read from `Activation Date`; blank is allowed, a supplied value must be valid, and it is distinct from billing period.”
 - [ ] T009 [US1] Implement the published-period employee query in `LeaseInvoice/App_Code/MobileCharges/MobileAssignmentRepository.vb`, filtering only by the server-resolved employee number and returning the complete published period.
-- [ ] T010 [US1] Replace the mobile page data binding in `LeaseInvoice/rptMCMUserPeriodDetail.aspx.vb` so it uses the authenticated account mapping and repository, never a query-string employee ID.
-- [ ] T011 [US1] Render the employee context, published month, mobile number, monthly charge, and optional activation date in `LeaseInvoice/rptMCMUserPeriodDetail.aspx`; show a blank activation date as unavailable, not as the billing period, and identify currency only when defined by the source.
+- [X] T010 [US1] Replace the mobile page data binding in `LeaseInvoice/rptMCMUserPeriodDetail.aspx.vb` so it uses the authenticated account mapping and repository, never a query-string employee ID.
+- [X] T011 [US1] Render the employee context, published month, mobile number, monthly charge, and optional activation date in `LeaseInvoice/rptMCMUserPeriodDetail.aspx`; show a blank activation date as unavailable, not as the billing period, and identify currency only when defined by the source.
 
 **Checkpoint**: Employee isolation and displayed source values pass the US1
 independent test.
@@ -69,7 +76,7 @@ and readability at a narrow viewport.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Wire the existing Asset Voucher selection `.aspx` page identified in T001 under `LeaseInvoice/` to the replacement mobile page without changing the PC Asset Charges destination or creating a duplicate menu page.
+- [ ] T013 [US2] Verify in staging that the existing Asset Voucher entry opens `LeaseInvoice/rptMCMUserPeriodDetail.aspx`; preserve the existing menu and the PC Asset Charges destination unchanged.
 - [ ] T014 [US2] Add a labeled return link and keyboard-accessible, narrow-screen layout to `LeaseInvoice/rptMCMUserPeriodDetail.aspx`.
 
 **Checkpoint**: Existing navigation works in both directions and the PC page
@@ -92,9 +99,9 @@ previous published snapshot.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Implement `MM_YYYY` period parsing and `Billing Data` header-based workbook reading in `LeaseInvoice/App_Code/MobileCharges/MobileWorkbookReader.vb`, requiring exact headers `Description 2 - Emp Number`, `Mobile Number`, `Equipment Payment Plan Charges`, and `Activation Date`; support only formats verified in T002.
-- [ ] T018 [US3] Validate each workbook row in `LeaseInvoice/App_Code/MobileCharges/MobileWorkbookValidator.vb` using the data-model rules “missing/invalid employee number, missing/duplicate mobile number, invalid or missing monthly charge, invalid non-empty activation date, or duplicate phone within the period”; a blank activation date is valid, phones retain significant characters, and zero monthly charge is valid.
-- [ ] T019 [P] [US3] Implement server-side authorization for explicitly approved TI publishers in `LeaseInvoice/App_Code/MobileCharges/MobileChargesPublisherAuthorization.vb`; deny other IT users and workbook preparers unless explicitly authorized.
+- [ ] T017 [US3] Verify the prepared reader in `LeaseInvoice/App_Code/MobileCharges/Workbook.vb` against the actual anonymized workbook (T002); require `Billing Data` and exact headers `Description 2 - Emp Number`, `Mobile Number`, `Equipment Payment Plan Charges`, and `Activation Date`.
+- [X] T018 [US3] Validate each workbook row in `LeaseInvoice/App_Code/MobileCharges/Workbook.vb` and `LeaseInvoice/App_Code/MobileCharges/Models.vb` using the data-model rules “missing/invalid employee number, missing/duplicate mobile number, invalid or missing monthly charge, invalid non-empty activation date, or duplicate phone within the period”; a blank activation date is valid, phones retain significant characters, and zero monthly charge is valid.
+- [X] T019 [P] [US3] Implement server-side authorization for explicitly approved TI publishers in `LeaseInvoice/App_Code/MobileCharges/Access.vb`; deny other IT users and workbook preparers unless explicitly authorized.
 - [ ] T020 [US3] Implement staging and transactional publication in `LeaseInvoice/App_Code/MobileCharges/MobileChargesPublicationService.vb`, replacing the full snapshot atomically, allowing same-month corrections and later months, rejecting earlier months, preventing duplicates, and rechecking the current period at publication time.
 - [ ] T021 [US3] Add the restricted upload, validation preview with period, row count and actionable errors, and explicit publish-confirmation flow in `LeaseInvoice/MobileChargesUpload.aspx` and `LeaseInvoice/MobileChargesUpload.aspx.vb`; enforce application/IIS size limits, cap workbook dimensions, dispose parser resources, and clean up unique temporary files outside the web root.
 
@@ -117,7 +124,7 @@ internal details.
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] Implement explicit empty, unavailable, unverified-identity, and query-failure states in `LeaseInvoice/rptMCMUserPeriodDetail.aspx.vb` and `LeaseInvoice/rptMCMUserPeriodDetail.aspx`.
+- [X] T023 [US4] Implement explicit empty, unavailable, unverified-identity, and query-failure states in `LeaseInvoice/rptMCMUserPeriodDetail.aspx.vb` and `LeaseInvoice/rptMCMUserPeriodDetail.aspx`.
 
 **Checkpoint**: All empty and failure scenarios are distinguishable, and
 employee-facing errors do not disclose internal details.
@@ -195,3 +202,18 @@ boundaries before delivery.
 - Every implementation task targets the recovered Web Forms application under `LeaseInvoice/`; this repository currently contains only the planning documents.
 - If the recovered solution uses different physical paths or test conventions, update these tasks after T001/T003 rather than creating duplicate projects or parallel storage mechanisms.
 - Keep all workbook fixtures synthetic or anonymized; never commit production employee data or credentials.
+
+## Prepared implementation evidence (2026-11-12)
+
+`scripts/Test-EmployeeMobileCharges.ps1` compiles the new VB services and runs
+34 synthetic assertions from `tests/MobileChargesTests.vb`.
+`scripts/Test-MobileChargesPages.ps1` precompiles both new page implementations
+using the configuration example. The SQL, identity and live regression tasks
+remain unchecked: there is no approved target database and no SQL changes
+were applied.
+
+The prepared implementations corresponding to T005/T009/T020/T021 are in
+`database/Install-EmployeeMobileCharges.sql`,
+`LeaseInvoice/App_Code/MobileCharges/Store.vb`, and
+`LeaseInvoice/MobileChargesUpload.aspx(.vb)`; they are not claimed verified
+against live SQL. Session staging replaces the earlier temporary-file approach.

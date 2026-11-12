@@ -111,3 +111,22 @@ employee number must also be verified before wiring the employee query.
 ## Complexity Tracking
 
 No constitution violations or additional architectural projects are proposed.
+
+## Isolated implementation update (2026-11-12)
+
+The user approved preparing an Excel-backed employee-page replacement and
+deployment scripts, without applying SQL changes until a database is approved.
+`LeaseInvoice/` now contains only that overlay; it is not the full legacy site.
+`MCMConnectionString` and the other reports are unchanged. The new connections
+are `MobileChargesConnectionString`, `MobileChargesPublisherConnectionString`
+and `MobileChargesIdentityConnectionString`. The DBA must implement the
+explicit identity procedure contract after verifying employee-number mapping.
+
+ExcelDataReader 3.7.0 is declared in `LeaseInvoice/packages.config`. Validation
+stages rows in server-side session rather than temporary application files;
+publication writes a complete snapshot in a SQL transaction. No raw workbook
+is retained by application code. The proposed tables are confined to `mobile`.
+
+The shared services and both ASP.NET pages compile locally; synthetic workbook
+tests pass. Live SQL, identity, staging UX and legacy report regressions remain
+deployment gates. Full instructions are in `docs/mobile-charges-database-access.md`.
