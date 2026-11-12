@@ -49,3 +49,19 @@ All success and rejection states match
 [the UI contract](contracts/mobile-charges-ui.md), row and lifecycle rules match
 [the data model](data-model.md), and the measurable targets in `spec.md` pass.
 Use only synthetic/anonymized data in test artifacts and logs.
+
+## Prepared overlay checks (2026-11-12)
+
+From the repository root, the isolated overlay can now be checked without SQL:
+
+```powershell
+& .\scripts\Restore-MobileCharges.ps1
+& .\scripts\Test-EmployeeMobileCharges.ps1
+& .\scripts\Test-MobileChargesPages.ps1
+```
+
+The first command restores the declared package; the latter two compile and run
+synthetic service tests and precompile the Web Forms overlay respectively.
+They do not apply SQL changes. Live identity resolution, publication/rollback
+and concurrency checks still require an approved staging database. Confirm
+the production CLR/runtime before deploying; the old error screenshot was v2.

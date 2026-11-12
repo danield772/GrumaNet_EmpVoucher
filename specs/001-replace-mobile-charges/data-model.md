@@ -87,3 +87,19 @@ within the period. A blank activation date is valid and must be shown as
 unavailable. Stage and report row/column diagnostics without exposing other
 employees' data to the publisher beyond what is necessary to correct the source
 file.
+
+## Prepared overlay storage constraints (2026-11-12)
+
+The proposed `mobile` SQL schema stores only the active snapshot. Its physical
+constraints are: employee number and preserved phone/key up to 64 characters,
+monthly charge `decimal(19,4)`, optional activation date and monthly period
+stored as SQL `datetime` (year 1753 or later). Source filenames are capped at
+200 characters; authenticated login names at 256. Invalid values are rejected,
+not truncated or rounded. These are storage/validation limits, not new charging
+or employee eligibility policies.
+
+Validated uploads are staged in server-side session and become a published SQL
+batch only on confirmation. `Uploaded`/`Validated`/`Rejected`/`Failed` are
+request/session lifecycle outcomes, not persisted historical states in this
+overlay. Previous snapshots are removed within the publication transaction.
+The deployment SQL remains unapplied pending DBA approval.

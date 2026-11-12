@@ -1,0 +1,20 @@
+-- Documentation/template only. DO NOT execute until the DBA verifies the actual
+-- corporate login -> workbook employee number relationship.
+--
+-- Install this procedure in the identity database selected by the DBA and grant
+-- only EXECUTE to the identity connection principal.
+--
+-- CREATE PROCEDURE dbo.MobileChargesResolveEmployee
+--     @Login nvarchar(256)
+-- AS
+-- BEGIN
+--     SET NOCOUNT ON;
+--     SELECT <verified workbook employee number>
+--     FROM <existing corporate identity source>
+--     WHERE <verified corporate login column> = @Login;
+-- END;
+--
+-- The result must contain exactly one row, one nonempty employee number column
+-- (nvarchar <=64). Zero/multiple rows fail closed. Do not equate peopleid,
+-- sap_number, or the workbook employee number without verifying real mappings.
+-- No new identity table, manual employee selector, or request-supplied ID.

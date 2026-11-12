@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Merge ONLY these new settings into the deployed configuration after review.
+     This is not a replacement web.config. Leave all legacy settings unchanged. -->
+<configuration>
+  <appSettings>
+    <add key="MobileChargesPublishers" value="" />
+    <add key="MobileChargesReturnUrl" value="~/REPLACE_WITH_EXISTING_ASSET_VOUCHER_PATH.aspx" />
+  </appSettings>
+  <connectionStrings>
+    <add name="MobileChargesConnectionString" providerName="System.Data.SqlClient"
+         connectionString="Data Source=APPROVED_SERVER;Initial Catalog=APPROVED_DATABASE;Integrated Security=True;Encrypt=True;TrustServerCertificate=False" />
+    <add name="MobileChargesIdentityConnectionString" providerName="System.Data.SqlClient"
+         connectionString="Data Source=APPROVED_SERVER;Initial Catalog=APPROVED_IDENTITY_DATABASE;Integrated Security=True;Encrypt=True;TrustServerCertificate=False" />
+    <add name="MobileChargesPublisherConnectionString" providerName="System.Data.SqlClient"
+         connectionString="Data Source=APPROVED_SERVER;Initial Catalog=APPROVED_DATABASE;Integrated Security=True;Encrypt=True;TrustServerCertificate=False" />
+  </connectionStrings>
+  <system.web>
+    <!-- Merge this assembly into the existing compilation/assemblies element.
+         Preserve the application's other assemblies, runtime and settings. -->
+    <compilation targetFramework="4.7.1">
+      <assemblies>
+        <add assembly="System.IO.Compression, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+      </assemblies>
+    </compilation>
+  </system.web>
+  <!-- Page-specific limits: do not change the legacy reports' global limits. -->
+  <location path="MobileChargesUpload.aspx">
+    <system.web>
+      <httpRuntime maxRequestLength="11264" executionTimeout="120" />
+    </system.web>
+    <system.webServer>
+      <security>
+        <requestFiltering>
+          <requestLimits maxAllowedContentLength="11534336" />
+        </requestFiltering>
+      </security>
+    </system.webServer>
+  </location>
+</configuration>
