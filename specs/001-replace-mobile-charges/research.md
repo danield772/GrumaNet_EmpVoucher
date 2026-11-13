@@ -26,9 +26,10 @@ and existing corporate authentication.
 
 ## Identity and authorization
 
-**Decision**: Resolve the signed-in corporate account on the server and map it
-to the employee using the existing `PeopleId_by_logoind` / `zGetPidFlogon`
-path. Filter every employee query by that resolved employee ID. Enforce
+**Decision**: Resolve the signed-in corporate account on the server using
+`dbo.MobileChargesResolveEmployee`: match the full account to
+`MainInv.dbo.people.LOGONID` and return `sap_number`. Filter every employee
+query by that resolved workbook employee number. Enforce
 publisher authorization server-side using the explicitly approved TI publisher
 list or role already used by the application.
 
@@ -36,8 +37,20 @@ list or role already used by the application.
 application also exposes the authenticated identity and a server-side mapping.
 Using a caller-supplied ID would permit cross-employee disclosure. Authentication
 does not itself imply permission to publish workbook data. The mapping helper
-returns a `PeopleId`; confirm how that identifier corresponds to the workbook's
-`Description 2 - Emp Number` before implementing the row filter.
+returns a `PeopleId`, not the workbook employee number.
+
+**Verified follow-up (2026-11-12)**: The existing `dbo.zGetPidFlogon`
+definition selects `peopleid` from `people` using `logonid`. A user-authorized
+read-only lookup matched the supplied workbook employee number to exactly one
+`sap_number` row and the current full Windows login in `LOGONID`; `peopleid`
+is a different internal identifier. No personal values are recorded here.
+The new procedure was installed transactionally in the approved `MainInv`
+database and verified for the current Windows account. It preserves all
+matching rows, including null/duplicate values, for the application's
+fail-closed resolver. It adds no inferred eligibility/Active policy.
+Eight SQL fixture cases cover exact/missing/domainless/duplicate/null/empty
+lookup behavior using temporary objects only. IIS runtime identity and
+procedure permissions still require staging verification.
 
 **Alternatives considered**: Trusting the query string or a form field, mapping
 by employee display name, or allowing every IT user. These do not satisfy the

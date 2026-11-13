@@ -65,3 +65,51 @@ synthetic service tests and precompile the Web Forms overlay respectively.
 They do not apply SQL changes. Live identity resolution, publication/rollback
 and concurrency checks still require an approved staging database. Confirm
 the production CLR/runtime before deploying; the old error screenshot was v2.
+
+## Deployment preparation update (2026-11-12)
+
+The user reported the live IIS pool uses CLR v4 and the server's Framework
+Release value is `533509` (.NET Framework 4.8.1), satisfying the Framework
+minimum. The user subsequently approved the existing `MainInv` database on
+`zcirving03`. The isolated `mobile` schema, three empty snapshot tables and
+two procedures have been installed transactionally on SQL Server 2019.
+Do not rerun the installer. The verified identity procedure has also been
+installed in `MainInv`, mapping full `people.LOGONID` to `sap_number`.
+No grants or IIS changes were applied; application permissions and staged
+acceptance remain pending.
+
+Check a secured staging site copy with:
+
+```powershell
+& .\scripts\Test-MobileChargesDeployment.ps1 -SitePath 'C:\staging\LeaseInvoice'
+& .\tests\Test-MobileChargesDeployment.Tests.ps1
+```
+
+The preflight is offline and reports missing/placeholder settings without
+printing credentials. The example configuration must fail until approved
+values are supplied. It cannot verify the SQL identity procedure or replace DBA
+approval. See `docs/mobile-charges-database-access.md` for precise scope.
+
+## Local read-only demo
+
+`scripts/New-MobileChargesDemo.ps1` prepared an ignored
+`tests\bin\MobileChargesDemo` site with a separate landing page, Windows
+authentication, secure cookies and an empty publisher allowlist. It uses
+the approved `MainInv` read/identity targets but cannot publish. Do not
+overwrite the legacy site with it.
+
+Local IIS is not installed and the session is not elevated. An administrator
+must provision the separate HTTPS/Windows-authenticated CLR v4 site and an
+approved SQL runtime identity before a browser demo can run.
+To demonstrate publication, approve a separate demo database first; never
+publish synthetic rows into the active `MainInv` snapshot.
+
+```powershell
+& .\tests\Test-MobileChargesIdentity.Tests.ps1 -Server zcirving03 -Database MainInv
+& .\tests\Test-MobileChargesDemo.Tests.ps1
+```
+
+Eight temporary SQL fixture cases passed; the installed resolver returned
+exactly one mapping for the current Windows account without saving employee
+values. Demo safeguards and all three ASP.NET pages compile. These checks do
+not verify IIS authentication, SQL runtime permissions or live browser behavior.

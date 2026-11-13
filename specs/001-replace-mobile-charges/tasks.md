@@ -30,7 +30,7 @@ and test commands before changing the legacy site.
 shared by the employee view and monthly publisher. These tasks block all user
 stories.
 
-- [ ] T004 [P] Verify how `PeopleId_by_logoind` in `LeaseInvoice/App_Code/dbPeople.vb` maps the authenticated corporate login to `Description 2 - Emp Number`; document the confirmed mapping in `specs/001-replace-mobile-charges/research.md`.
+- [X] T004 [P] Verify how `PeopleId_by_logoind` in `LeaseInvoice/App_Code/dbPeople.vb` maps the authenticated corporate login to `Description 2 - Emp Number`; document the confirmed mapping in `specs/001-replace-mobile-charges/research.md`.
 - [ ] T005 [P] Define SQL persistence for `BillingPeriod`, `UploadBatch`, and complete monthly snapshots in `LeaseInvoice/Database/MobileCharges.sql`, following the recovered deployment conventions and these field rules from `specs/001-replace-mobile-charges/data-model.md`: `year` “Four-digit year”; `month` “`1` through `12`”; `batchId` “Unique per upload attempt”; `billingPeriod` “Derived from the filename prefix; required”; `sourceFileName` “Preserve for provenance; do not expose to employees”; `uploadedBy` must be “an authenticated, explicitly authorized publisher”; `uploadedAt` “Server-generated”; status “`Uploaded`, `Validated`, `Rejected`, `Published`, or `Failed`”; `validationErrors` “Row/column diagnostics with no sensitive values in logs”; and a rejected or failed batch “must not change the active published snapshot.”
 - [ ] T006 Implement the shared employee identity resolver and mobile assignment repository in `LeaseInvoice/App_Code/MobileCharges/`, using the verified mapping from T004 and schema from T005; ensure employee queries cannot select an employee from request input.
 
@@ -138,6 +138,9 @@ boundaries before delivery.
 - [ ] T025 Verify the employee query, upload, workbook validation, and publication logs in `LeaseInvoice/App_Code/MobileCharges/` omit phone numbers, workbook contents, credentials, and internal connection details.
 - [ ] T026 Run the end-to-end scenarios in `specs/001-replace-mobile-charges/quickstart.md` against a non-production environment and record build/test commands and results in that guide.
 - [ ] T027 Verify SC-003 response-time target and all PC Asset Charges/navigation regression scenarios; record results in `specs/001-replace-mobile-charges/quickstart.md`.
+- [X] T028 Prepare the read-only local deployment preflight in `scripts/Test-MobileChargesDeployment.ps1` and synthetic cases in `tests/Test-MobileChargesDeployment.Tests.ps1`, checking new settings/files without SQL connections or changes to IIS or legacy reports.
+- [X] T029 Implement and install the verified `LOGONID` to `sap_number` resolver in `database/MobileChargesIdentityContract.sql`; exercise its SQL body against synthetic temporary fixtures in `tests/Test-MobileChargesIdentity.Tests.ps1`, and verify one mapping for the current account without saving personal identifiers.
+- [X] T030 Prepare separate read-only demo files with `scripts/New-MobileChargesDemo.ps1`, a demo-only landing page and `tests/Test-MobileChargesDemo.Tests.ps1`; disable publication, preserve Windows authentication/HTTPS requirements and do not modify IIS or legacy reports.
 
 ## Dependencies & Execution Order
 
@@ -209,11 +212,35 @@ boundaries before delivery.
 34 synthetic assertions from `tests/MobileChargesTests.vb`.
 `scripts/Test-MobileChargesPages.ps1` precompiles both new page implementations
 using the configuration example. The SQL, identity and live regression tasks
-remain unchecked: there is no approved target database and no SQL changes
-were applied.
+remain unchecked until their full acceptance criteria are met. The user
+subsequently approved `zcirving03` / `MainInv`, where the isolated schema
+and empty snapshot tables/procedures have now been installed transactionally.
 
 The prepared implementations corresponding to T005/T009/T020/T021 are in
 `database/Install-EmployeeMobileCharges.sql`,
 `LeaseInvoice/App_Code/MobileCharges/Store.vb`, and
 `LeaseInvoice/MobileChargesUpload.aspx(.vb)`; they are not claimed verified
 against live SQL. Session staging replaces the earlier temporary-file approach.
+
+The user reported CLR v4 and Framework Release `533509` (.NET Framework 4.8.1)
+for the web server. The Framework minimum is satisfied; the isolated schema
+is now installed in the approved database. T028 checks only local prerequisites;
+it does not mark live SQL behavior,
+employee identity integration, deployment or staging acceptance complete.
+
+Installation evidence: SQL Server `15.0.4500.2`; new `mobile.Batch`,
+`mobile.Assignment`, `mobile.CurrentSnapshot`, `mobile.ReadEmployee` and
+`mobile.Publish` objects; singleton initialized without a published batch.
+No application grants or legacy changes were applied.
+The identity procedure was subsequently installed and verified under T029.
+Publication/rollback/concurrency acceptance remains pending.
+
+T004 confirmed that the legacy helper returns internal `peopleid`, whereas
+the workbook uses `people.sap_number` mapped through the full `LOGONID`.
+T029 passed eight temporary SQL fixture cases and verified the installed
+procedure for the current Windows account without saving personal values.
+T030 produced a read-only site under ignored `tests\bin\MobileChargesDemo`;
+configuration safeguards and all three pages precompile. Local IIS is absent
+and the session is not elevated, so no browser URL or hosted demo exists yet.
+The IIS runtime identity, EXECUTE grants, HTTPS/Windows-authenticated hosting
+and a separately approved demo publication database remain prerequisites.
