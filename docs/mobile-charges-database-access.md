@@ -118,8 +118,13 @@ folder is an exact copy of production.
 ## Isolated Excel-backed replacement (prepared, not deployed)
 
 The user elected to replace only the employee mobile page without changing
-legacy reports. No target database is approved yet; **no SQL installation,
-permission change, or production deployment has been performed**.
+legacy reports. On 2026-11-12, the user approved installing the isolated schema
+in the existing `MainInv` database on `zcirving03`. Installation completed in
+one transaction using Windows authentication: the `mobile` schema, three
+snapshot tables, and `mobile.ReadEmployee`/`mobile.Publish` procedures.
+The initial snapshot is empty. The verified identity procedure was subsequently
+installed as described below. No permission grants, IIS changes, or live
+webpage deployment have been performed.
 
 ### Scope of the patch
 
@@ -139,23 +144,36 @@ configuration still require staging/regression checks before release.
 
 ### Approval and integration gates
 
+Runtime update reported by the user on 2026-11-12: the LeaseInvoice IIS pool
+uses CLR v4 and the web-server Framework Release value is `533509` (.NET
+Framework 4.8.1). This satisfies the prepared overlay's Framework minimum
+without changing the application pool. A direct connection to the approved
+target confirmed SQL Server version `15.0.4500.2` (SQL Server 2019).
+The identity procedure has been installed and checked with the current
+Windows account. Application SQL identities/permissions, IIS hosting and staged
+legacy-report regressions remain pending.
+
 1. Confirm the production runtime. The prepared code needs .NET Framework
    **4.7.1 or later** on CLR v4 and SQL Server **2012 or later**. The error
    screenshot showed ASP.NET 2.0. Do not upgrade the shared application's pool
    merely to install this patch: that can affect other reports. If production
    is still on CLR v2, stop and agree a separately isolated application/routing
    plan or a runtime migration before deployment.
-2. Obtain DBA approval for the database and SQL identities. Review
+2. Database approval and isolated schema installation are complete for
+   `zcirving03` / `MainInv`; application SQL identities still need approval.
+   Do not rerun the installer on this database. Review
    `database/Install-EmployeeMobileCharges.sql`; it defaults to no execution.
    The DBA must select the approved non-system database and deliberately enable
    installation in a local copy. It creates only the new `mobile` schema,
    snapshot tables, `mobile.ReadEmployee`, and `mobile.Publish`; existing tables
    and reports are untouched. Do not use the legacy CUS repair script for this.
-3. Implement `database/MobileChargesIdentityContract.sql` against the verified
-   corporate identity source. The procedure must return exactly one workbook
-   employee number for the authenticated login. `peopleid` and `sap_number`
-   are not assumed to be that number. The example is comments only, not a
-   speculative identity mapping; consultation fails closed until configured.
+3. `database/MobileChargesIdentityContract.sql` now contains the guarded,
+   verified implementation installed in `MainInv`. It maps the full corporate
+   login through `dbo.people.LOGONID` to `sap_number` (the workbook employee
+   number), not the separate internal `peopleid`. Do not rerun it on the
+   existing procedure. It preserves missing, null and duplicate results so
+   the application rejects invalid/ambiguous mappings rather than choosing
+   a record with `TOP` or concealing duplicates with `DISTINCT`.
 4. Merge only the additions in `LeaseInvoice/MobileCharges.config.example`
    into the deployed configuration. Set an approved publisher allowlist using
    semicolon-separated full corporate logins, and the actual application-local
@@ -208,12 +226,99 @@ its zero row count is shown before confirmation.
 
 ### Local verification
 
+Before deployment, run the **read-only, offline** preflight against a secured
+staging copy of the complete site after merging the new settings:
+
+```powershell
+& .\scripts\Test-MobileChargesDeployment.ps1 -SitePath 'C:\staging\LeaseInvoice'
+```
+
+It checks the installed Framework on the machine running the script, required
+overlay files, ExcelDataReader assembly identity/version, inline connection
+targets, explicit publisher entries, local return-page existence, compression
+reference, and page-specific upload limits. It never opens a SQL connection,
+changes IIS, writes configuration, or prints connection strings/publisher names.
+It exits `1` for missing, placeholder or invalid local prerequisites.
+
+The committed example intentionally fails this check: it has no approved
+database, publisher or return route. Do not invent these values just to obtain
+a pass. Inherited/encrypted/external settings require manual review of effective
+IIS configuration; the script requires explicit inline settings in the secured
+site copy and does not decrypt configuration.
+
+A pass is only a local configuration preflight, not DBA approval, verification
+of the identity procedure, SQL availability or permissions, IIS authentication
+or HTTPS, application-pool runtime, or a release authorization. The approved schema is installed, but application deployment remains blocked
+until application permissions and identity resolution under the IIS runtime
+account are verified.
+
+### Separate local demo preparation
+
+The user selected a separate local IIS staging site. This computer runs
+Windows 11 Enterprise, but IIS is not installed and the agent session is not
+elevated. No IIS site, binding, certificate or application pool has been created.
+
+Prepare a new site directory without copying or changing the legacy site:
+
+```powershell
+& .\scripts\New-MobileChargesDemo.ps1 `
+    -SitePath (Join-Path $PWD 'tests\bin\MobileChargesDemo') `
+    -Server 'zcirving03' -Database 'MainInv' -IdentityDatabase 'MainInv'
+```
+
+This directory has already been prepared locally; the command refuses to
+overwrite an existing directory. Generated `web.config` stays under ignored
+`tests\bin`, uses three dedicated encrypted Windows-authenticated SQL
+connections, denies anonymous application access, requires secure cookies,
+and leaves the publisher allowlist empty. The landing/return page is a new
+demo-only `Default.aspx`, not the production menu. No personal identifiers
+are embedded. The read-only demo will report no published period until a
+snapshot is available; its upload route denies all publication.
+
+An administrator must first install local IIS with ASP.NET 4.x, .NET
+Extensibility 4.x, ISAPI extensions/filters, Windows Authentication, request
+filtering and the management console. Then configure a distinct CLR v4 pool
+and HTTPS-only, loopback-bound staging site, disable anonymous authentication,
+and enable Windows Authentication. Copy the prepared files to a dedicated
+secured IIS directory and grant that pool only the required filesystem access;
+do not grant IIS access to the whole repository or user profile.
+
+The approved IIS SQL runtime identity is still required. Integrated Security
+uses the application identity, not automatically the employee browsing the
+page. A local virtual pool identity normally reaches remote SQL as the
+computer account; do not assume the agent's SQL access is inherited by IIS.
+Approve the runtime identity and grant only EXECUTE on the appropriate
+procedures. Do not configure a personal administrator account as the pool
+identity or store its password in scripts.
+
+For an upload/publication demo, first approve a separate demo snapshot
+database, install its own `mobile` schema, configure the read/publish
+connections to that database, and explicitly authorize the test publisher.
+The identity connection may continue to use the verified `MainInv` resolver.
+Never publish synthetic snapshots into `MainInv` merely to make a demo work:
+publication replaces the complete active snapshot.
+
+Focused checks:
+
+```powershell
+& .\tests\Test-MobileChargesIdentity.Tests.ps1 -Server zcirving03 -Database MainInv
+& .\tests\Test-MobileChargesDemo.Tests.ps1
+```
+
+The identity cases execute the repository procedure body against
+connection-scoped synthetic temporary tables/procedures, not real employee
+records. The installed procedure was also checked for one mapping using the
+current Windows account without printing or saving the employee number.
+The demo checks verify authentication/configuration safeguards, refusal to
+overwrite existing sites, forbidden database targets and ASP.NET precompilation.
+
 From the repository root in Windows PowerShell:
 
 ```powershell
 & .\scripts\Restore-MobileCharges.ps1
 & .\scripts\Test-EmployeeMobileCharges.ps1
 & .\scripts\Test-MobileChargesPages.ps1
+& .\tests\Test-MobileChargesDeployment.Tests.ps1
 ```
 
 The restore fetches the declared ExcelDataReader 3.7.0 NuGet package, whose
@@ -222,6 +327,8 @@ copied to the overlay's `bin`; package and compiled output folders are ignored.
 The tests compile VB.NET services, read synthetic in-memory workbooks, and
 precompile both ASP.NET pages with the configuration example. They do not open
 SQL connections, use production employee records, or apply deployment scripts.
+Preflight tests use temporary synthetic site copies (including failure cases)
+and verify that credentials do not appear in output.
 
 The local checks passed: 34 synthetic assertions, the existing seven probe
 preflight cases, and ASP.NET precompilation with the example configuration.

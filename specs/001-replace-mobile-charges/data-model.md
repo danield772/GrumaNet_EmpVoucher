@@ -102,4 +102,9 @@ Validated uploads are staged in server-side session and become a published SQL
 batch only on confirmation. `Uploaded`/`Validated`/`Rejected`/`Failed` are
 request/session lifecycle outcomes, not persisted historical states in this
 overlay. Previous snapshots are removed within the publication transaction.
-The deployment SQL remains unapplied pending DBA approval.
+The user approved `zcirving03` / `MainInv` on 2026-11-12. The isolated schema,
+three empty snapshot tables and two procedures were installed in one
+transaction. The verified identity procedure was subsequently installed,
+mapping the full corporate `people.LOGONID` to `sap_number`; `peopleid` is
+not the workbook employee number. Application permissions and live
+publication/concurrency acceptance remain pending.

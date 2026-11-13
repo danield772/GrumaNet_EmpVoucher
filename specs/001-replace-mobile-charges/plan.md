@@ -119,8 +119,8 @@ deployment scripts, without applying SQL changes until a database is approved.
 `LeaseInvoice/` now contains only that overlay; it is not the full legacy site.
 `MCMConnectionString` and the other reports are unchanged. The new connections
 are `MobileChargesConnectionString`, `MobileChargesPublisherConnectionString`
-and `MobileChargesIdentityConnectionString`. The DBA must implement the
-explicit identity procedure contract after verifying employee-number mapping.
+and `MobileChargesIdentityConnectionString`. The verified identity procedure
+maps the full corporate `people.LOGONID` to workbook `sap_number`, not `peopleid`.
 
 ExcelDataReader 3.7.0 is declared in `LeaseInvoice/packages.config`. Validation
 stages rows in server-side session rather than temporary application files;
@@ -130,3 +130,26 @@ is retained by application code. The proposed tables are confined to `mobile`.
 The shared services and both ASP.NET pages compile locally; synthetic workbook
 tests pass. Live SQL, identity, staging UX and legacy report regressions remain
 deployment gates. Full instructions are in `docs/mobile-charges-database-access.md`.
+
+The user subsequently reported CLR v4 and Framework Release `533509` (4.8.1)
+on the web server. This meets the minimum Framework requirement without a
+pool upgrade. `scripts/Test-MobileChargesDeployment.ps1` now provides offline
+local configuration/file checks. It does not connect to SQL or verify the
+identity procedure.
+
+The user subsequently approved `zcirving03` / `MainInv` for the isolated
+schema. A Windows-authenticated connection confirmed SQL Server 2019
+(`15.0.4500.2`) and the required creation permissions. The installer was
+executed in one transaction, creating only the `mobile` schema, three empty
+snapshot tables and two procedures. Subsequently,
+`dbo.MobileChargesResolveEmployee` was installed and checked for the current
+Windows account. Eight synthetic SQL cases preserve fail-closed missing/null/
+duplicate behavior without storing personal identifiers. No grants,
+legacy-object changes or application deployment were performed.
+
+The user selected a separate local IIS demo. `scripts/New-MobileChargesDemo.ps1`
+prepares only the overlay and a demo landing page; publication stays disabled.
+Its configuration safeguards and all three pages compile. Local IIS is absent
+and the session is not elevated, so hosting has not been configured.
+The approved IIS SQL identity/permissions, HTTPS/Windows Authentication,
+separate demo publication database and staged regressions remain gates.
