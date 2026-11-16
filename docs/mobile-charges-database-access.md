@@ -254,9 +254,24 @@ account are verified.
 
 ### Separate local demo preparation
 
-The user selected a separate local IIS staging site. This computer runs
-Windows 11 Enterprise, but IIS is not installed and the agent session is not
-elevated. No IIS site, binding, certificate or application pool has been created.
+For a visual-only preview without IIS or administrator privileges, run
+`node .\demo\server.cjs` from the repository root and open
+`http://127.0.0.1:8765`. The server binds only to loopback and serves only the
+demo HTML, not repository files. Stop it with Ctrl+C in the terminal running it.
+This synthetic simulation follows the current employee/upload page layout and
+provides scenario controls for assigned/empty/unavailable/unmapped states and
+simulated publication. It does not execute ASP.NET, authenticate users, parse
+workbooks or access SQL. Publication changes only browser memory; reset/reload
+discards it. It is not evidence that the IIS/SQL integration works.
+
+The user selected a separate local IIS staging site on Windows 11 Enterprise.
+IIS was subsequently installed and the user configured the separate site,
+HTTPS binding, application pool and Windows Authentication. The landing page
+and employee page loaded with the authenticated account, but the employee
+page reported SQL unavailable. A separate encrypted SQL connection test from
+the interactive account failed because the server certificate chain was not
+trusted; this does not verify the IIS pool's SQL permissions. The agent
+session is not elevated and did not configure IIS.
 
 Prepare a new site directory without copying or changing the legacy site:
 
@@ -266,8 +281,7 @@ Prepare a new site directory without copying or changing the legacy site:
     -Server 'zcirving03' -Database 'MainInv' -IdentityDatabase 'MainInv'
 ```
 
-This directory has already been prepared locally; the command refuses to
-overwrite an existing directory. Generated `web.config` stays under ignored
+The command refuses to overwrite an existing directory. Generated `web.config` stays under ignored
 `tests\bin`, uses three dedicated encrypted Windows-authenticated SQL
 connections, denies anonymous application access, requires secure cookies,
 and leaves the publisher allowlist empty. The landing/return page is a new
@@ -275,7 +289,7 @@ demo-only `Default.aspx`, not the production menu. No personal identifiers
 are embedded. The read-only demo will report no published period until a
 snapshot is available; its upload route denies all publication.
 
-An administrator must first install local IIS with ASP.NET 4.x, .NET
+For a new staging machine, an administrator must install local IIS with ASP.NET 4.x, .NET
 Extensibility 4.x, ISAPI extensions/filters, Windows Authentication, request
 filtering and the management console. Then configure a distinct CLR v4 pool
 and HTTPS-only, loopback-bound staging site, disable anonymous authentication,
