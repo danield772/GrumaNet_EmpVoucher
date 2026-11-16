@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mobile charges - local visual demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 1rem; color: #17251b; }
+    main, .demo { max-width: 64rem; margin: auto; }
+    h1 { color: #006400; }
+    .demo { background: #fff6db; border: 1px solid #d5b44c; padding: 1rem; box-sizing: border-box; margin-bottom: 2rem; }
+    .demo p { margin: .4rem 0 1rem; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: .7rem; border: 1px solid #b9c9bd; text-align: left; }
+    th { background: #e6f0e7; }
+    a:focus, button:focus, select:focus { outline: 3px solid #006400; outline-offset: 2px; }
+    .status { padding: 1rem 0; white-space: pre-wrap; }
+    nav { margin-top: 1rem; }
+    button, select { padding: .5rem; margin: .3rem; max-width: 100%; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <aside class="demo" aria-label="Demo controls">
+    <strong>LOCAL VISUAL DEMO - synthetic data only</strong>
+    <p>This is a simulation of the current Web Forms interface, not the live application.
+      No SQL, Windows authentication, real Excel parsing or publication is performed.</p>
+    <label for="scenario">Preview scenario</label>
+    <select id="scenario">
+      <option value="employee">Employee with two mobile assignments</option>
+      <option value="other">Another synthetic employee</option>
+      <option value="empty">Employee without assignments</option>
+      <option value="unpublished">No published billing period</option>
+      <option value="identity">Unverified identity</option>
+      <option value="failure">Database unavailable</option>
+      <option value="upload">Authorized publisher simulation</option>
+      <option value="denied">Unauthorized publisher</option>
+    </select>
+    <button id="reset" type="button">Reset demo</button>
+  </aside>
+  <main>
+    <section id="home">
+      <h1>Asset Voucher - demo navigation</h1>
+      <p>This landing page is a demo placeholder, not a reconstruction of the existing menu.</p>
+      <p><a href="#employee">Mobile Device Charges</a></p>
+      <p>PC Asset Charges is outside this preview and remains unchanged.</p>
+      <p><a href="#upload">Preview monthly publication</a></p>
+    </section>
+    <section id="employee" hidden>
+      <h1>Mobile Device Charges</h1>
+      <p id="account"></p>
+      <p id="period"></p>
+      <p id="employee-status" class="status" role="status"></p>
+      <div class="table-wrap">
+        <table id="assignments">
+          <caption>Your mobile assignments</caption>
+          <thead><tr><th scope="col">Mobile number</th><th scope="col">Monthly equipment payment charge</th><th scope="col">Activation date</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <nav><a href="#home">Return to Asset Voucher</a></nav>
+    </section>
+    <section id="upload" hidden>
+      <h1>Publish mobile charges</h1>
+      <p>Upload the complete monthly Billing Data workbook (.xls/.xlsx, up to 10 MB).
+        The file name must start with MM_YYYY. Validation does not change published data.</p>
+      <p><strong>Simulation:</strong> choose a built-in synthetic fixture instead of uploading a real file.</p>
+      <div id="publisher-controls">
+        <label for="fixture">Monthly workbook fixture</label>
+        <select id="fixture">
+          <option value="valid">11_2026_demo.xlsx - valid, 3 synthetic rows</option>
+          <option value="correction">11_2026_correction.xlsx - same-month correction</option>
+          <option value="later">12_2026_demo.xlsx - later period</option>
+          <option value="earlier">10_2026_demo.xlsx - earlier period</option>
+          <option value="invalid">11_2026_invalid.xlsx - duplicate phone</option>
+        </select>
+        <button id="validate" type="button">Simulate workbook validation</button>
+        <p id="upload-status" class="status" role="status"></p>
+        <button id="publish" type="button" hidden>Simulate confirmation of validated snapshot</button>
+      </div>
+      <p id="denied" class="status" role="status" hidden>You are not authorized to publish mobile charges.</p>
+      <p><a href="#employee">View my mobile charges</a></p>
+      <nav><a href="#home">Return to Asset Voucher</a></nav>
+    </section>
+  </main>
+  <script>
+    'use strict';
+    const get = id => document.getElementById(id);
+    const fixtureRows = [
+      ['+1 (202) 555-0101', '24.5', '2025-03-01'],
+      ['+1 (202) 555-0102', '0', 'Not available']
+    ];
+    let activeMonth = 11;
+    let corrected = false;
+    let staged = null;
+    function render() {
+      const section = location.hash.slice(1) || 'home';
+      for (const id of ['home', 'employee', 'upload']) get(id).hidden = id !== section;
+      if (!['home', 'employee', 'upload'].includes(section)) get('home').hidden = false;
+      const scenario = get('scenario').value;
+      const messages = {
+        empty: 'No mobile assignments are listed for you for this billing period.',
+        unpublished: 'Mobile charges are unavailable: no billing period has been published.',
+        identity: 'Your corporate account could not be verified or linked to an employee number. No assignments were disclosed.',
+        failure: 'Mobile charges are temporarily unavailable. Please contact IT or try again later.'
+      };
+      get('account').textContent = 'Signed in as DEMO\\' + (scenario === 'other' ? 'EMPLOYEE_TWO' : 'EMPLOYEE_ONE');
+      get('period').textContent = ['unpublished', 'identity', 'failure'].includes(scenario)
+        ? '' : 'Billing period: ' + (activeMonth === 11 ? 'November' : 'December') + ' 2026';
+      get('employee-status').textContent = messages[scenario] || '';
+      get('assignments').hidden = Boolean(messages[scenario]);
+      get('rows').replaceChildren();
+      const rows = scenario === 'other' ? [['+1 (202) 555-0103', '18', '2026-01-15']]
+        : corrected ? [fixtureRows[0]] : fixtureRows;
+      if (!messages[scenario]) for (const values of rows) {
+        const row = document.createElement('tr');
+        for (const value of values) {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        get('rows').appendChild(row);
+      }
+      get('publisher-controls').hidden = scenario === 'denied';
+      get('denied').hidden = scenario !== 'denied';
+    }
+    function clearStage() {
+      staged = null;
+      get('publish').hidden = true;
+      get('upload-status').textContent = '';
+    }
+    get('scenario').addEventListener('change', () => {
+      clearStage();
+      location.hash = ['upload', 'denied'].includes(get('scenario').value) ? 'upload' : 'employee';
+      render();
+    });
+    get('fixture').addEventListener('change', clearStage);
+    get('validate').addEventListener('click', () => {
+      clearStage();
+      const fixture = get('fixture').value;
+      if (fixture === 'invalid') {
+        get('upload-status').textContent = 'SIMULATED validation rejected: row 3 contains a duplicate mobile number. Published data is unchanged.';
+        return;
+      }
+      staged = { month: fixture === 'later' ? 12 : fixture === 'earlier' ? 10 : 11, correction: fixture === 'correction' };
+      get('upload-status').textContent = 'SIMULATED validation complete: ' + staged.month + '/2026, '
+        + (staged.correction ? 2 : 3) + ' rows. No data has been published. Confirm to replace the complete demo snapshot.';
+      get('publish').hidden = false;
+    });
+    get('publish').addEventListener('click', () => {
+      if (!staged) return;
+      if (staged.month < activeMonth) {
+        get('upload-status').textContent = 'SIMULATED publication rejected: an earlier period cannot replace the current publication. Demo snapshot unchanged.';
+      } else {
+        activeMonth = staged.month;
+        corrected = staged.correction;
+        get('upload-status').textContent = 'SIMULATED publication successful for ' + activeMonth + '/2026. Only browser memory changed; no database was accessed.';
+      }
+      staged = null;
+      get('publish').hidden = true;
+      render();
+    });
+    get('reset').addEventListener('click', () => {
+      activeMonth = 11; corrected = false; clearStage();
+      get('scenario').value = 'employee'; get('fixture').value = 'valid';
+      location.hash = 'home'; render();
+    });
+    window.addEventListener('hashchange', render);
+    render();
+  </script>
+</body>
+</html>
